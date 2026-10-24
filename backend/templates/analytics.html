@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Marketplace analytics · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">MARKETPLACE OPERATIONS</span><h1>Platform analytics</h1><p>Current marketplace activity and payment totals.</p></div><a class="btn btn-outline-primary" href="/admin-dashboard/">Back to admin dashboard</a></div>
+<div id="analytics-grid" class="admin-stats" aria-live="polite"><p class="empty-state">Loading platform metrics…</p></div>
+<script>
+async function loadAnalytics() {
+  const root = document.getElementById('analytics-grid');
+  try {
+    const metrics = await window.marketplace.api('/api/dashboard/analytics/');
+    const cards = Object.entries(metrics).map(([key, value]) => {
+      const card = document.createElement('article');
+      card.className = 'admin-stat-card';
+      const label = document.createElement('span');
+      label.textContent = key.replaceAll('_', ' ');
+      const number = document.createElement('strong');
+      number.textContent = typeof value === 'number' && key.includes('payments')
+        ? window.marketplace.money(value)
+        : String(value);
+      card.append(label, number);
+      return card;
+    });
+    root.replaceChildren(...cards);
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadAnalytics();
+</script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Product details · AuctionHub{% endblock %}
+{% block content %}
+<a class="back-link" href="/products/">← Back to marketplace</a>
+<div id="product-details" class="form-panel mt-3" aria-live="polite">Loading product…</div>
+<script>
+async function loadProduct() {
+  const root = document.getElementById('product-details');
+  const productId = new URLSearchParams(location.search).get('id');
+  if (!productId || !/^\d+$/.test(productId)) {
+    root.textContent = 'A valid product was not selected.';
+    return;
+  }
+  try {
+    const product = await window.marketplace.api(`/api/products/products/${encodeURIComponent(productId)}/`);
+    const tag = document.createElement('span');
+    tag.className = 'market-tag';
+    tag.textContent = product.status.replaceAll('_', ' ');
+    const title = document.createElement('h1');
+    title.textContent = product.name;
+    const category = document.createElement('p');
+    category.className = 'text-muted';
+    category.textContent = `${product.category_name || 'Marketplace'} · ${product.condition} · Listed by ${product.seller_name}`;
+    const price = document.createElement('p');
+    price.className = 'market-price';
+    price.textContent = window.marketplace.money(product.starting_price);
+    const description = document.createElement('p');
+    description.className = 'product-description';
+    description.textContent = product.description;
+    const action = document.createElement('a');
+    action.className = 'btn btn-primary';
+    action.href = product.status === 'AUCTION' ? '/buyer-dashboard/' : '/products/';
+    action.textContent = product.status === 'AUCTION' ? 'View auctions' : 'Back to marketplace';
+    root.replaceChildren(tag, title, category, price, description, action);
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadProduct();
+</script>
+{% endblock %}

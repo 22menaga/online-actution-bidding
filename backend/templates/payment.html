@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Payments · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">SECURE CHECKOUT</span><h1>Payments</h1><p>Checkout is provided by Stripe. Payment completion is confirmed by the server.</p></div><a class="btn btn-outline-primary" href="/won-auctions/">Won auctions</a></div>
+<p id="checkout-message" class="form-message" role="status" aria-live="polite"></p>
+<div id="payment-list" class="activity-list" aria-live="polite"><p class="empty-state">Loading payments…</p></div>
+<script>
+const root = document.getElementById('payment-list');
+const checkoutMessage = document.getElementById('checkout-message');
+const checkoutState = new URLSearchParams(location.search).get('checkout');
+if (checkoutState === 'success') checkoutMessage.textContent = 'Checkout returned. Payment status will update after secure server confirmation.';
+if (checkoutState === 'cancel') checkoutMessage.textContent = 'Checkout was cancelled. Your pending payment is still available below.';
+async function loadPayments() {
+  if (!localStorage.getItem('access')) {
+    root.innerHTML = '<p class="empty-state">Sign in to view payments. <a href="/login/">Sign in</a></p>';
+    return;
+  }
+  try {
+    const payments = window.marketplace.items(await window.marketplace.api('/api/payments/'));
+    const rows = payments.map((payment) => {
+      const row = document.createElement('div');
+      row.className = 'activity-row';
+      const details = document.createElement('span');
+      details.textContent = `Auction #${payment.auction} · ${window.marketplace.money(payment.amount)} · ${payment.status}`;
+      row.append(details);
+      if (['PENDING', 'PROCESSING'].includes(payment.status)) {
+        const button = document.createElement('button');
+        button.className = 'btn btn-primary btn-sm';
+        button.textContent = payment.status === 'PROCESSING' ? 'Continue checkout' : 'Pay securely';
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          checkoutMessage.classList.remove('text-danger');
+          checkoutMessage.textContent = 'Preparing secure checkout…';
+          try {
+            const result = await window.marketplace.api(`/api/payments/${payment.id}/checkout/`, { method: 'POST' });
+            location.assign(result.checkout_url);
+          } catch (error) {
+            checkoutMessage.textContent = error.message;
+            checkoutMessage.classList.add('text-danger');
+            button.disabled = false;
+          }
+        });
+        row.append(button);
+      }
+      return row;
+    });
+    root.replaceChildren(...rows);
+    if (!rows.length) root.innerHTML = '<p class="empty-state">No payments yet. Win an auction to see checkout here.</p>';
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadPayments();
+</script>
+{% endblock %}

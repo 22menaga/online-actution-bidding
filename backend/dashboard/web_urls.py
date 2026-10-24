@@ -1,0 +1,30 @@
+from django.urls import path
+from django.views.generic import TemplateView
+
+urlpatterns = [
+    path("", TemplateView.as_view(template_name="home.html"), name="home"),
+    path("login/", TemplateView.as_view(template_name="auth/login.html"), name="login"),
+    path("register/", TemplateView.as_view(template_name="register.html"), name="register"),
+    path("buyer-dashboard/", TemplateView.as_view(template_name="buyer-dashboard.html"), name="buyer-dashboard"),
+    path("seller-dashboard/", TemplateView.as_view(template_name="seller-dashboard.html"), name="seller-dashboard"),
+    path("admin-dashboard/", TemplateView.as_view(template_name="admin-dashboard.html"), name="admin-dashboard"),
+    path("products/", TemplateView.as_view(template_name="products.html"), name="products"),
+    path("product-details/", TemplateView.as_view(template_name="product-details.html"), name="product-details"),
+    path("auction-details/", TemplateView.as_view(template_name="auction-details.html"), name="auction-details"),
+    path("live-bidding/", TemplateView.as_view(template_name="live-bidding.html"), name="live-bidding"),
+    path("my-bids/", TemplateView.as_view(template_name="my-bids.html"), name="my-bids"),
+    path("won-auctions/", TemplateView.as_view(template_name="won-auctions.html"), name="won-auctions"),
+    path("payment/", TemplateView.as_view(template_name="payment.html"), name="payment"),
+    path("notifications/", TemplateView.as_view(template_name="notifications.html"), name="notifications"),
+    path("profile/", TemplateView.as_view(template_name="profile.html"), name="profile"),
+    path("seller-verification/", TemplateView.as_view(template_name="seller-verification.html"), name="seller-verification"),
+    path("product-management/", TemplateView.as_view(template_name="product-management.html"), name="product-management"),
+    path("auction-management/", TemplateView.as_view(template_name="auction-management.html"), name="auction-management"),
+    path("auction-approval/", TemplateView.as_view(template_name="auction-approval.html"), name="auction-approval"),
+    path("seller-approval/", TemplateView.as_view(template_name="seller-approval.html"), name="seller-approval"),
+    path("product-approval/", TemplateView.as_view(template_name="product-approval.html"), name="product-approval"),
+    path("user-management/", TemplateView.as_view(template_name="user-management.html"), name="user-management"),
+    path("audit-logs/", TemplateView.as_view(template_name="audit-logs.html"), name="audit-logs"),
+    path("analytics/", TemplateView.as_view(template_name="analytics.html"), name="analytics"),
+    path("dashboard/", TemplateView.as_view(template_name="analytics.html"), name="dashboard"),
+]

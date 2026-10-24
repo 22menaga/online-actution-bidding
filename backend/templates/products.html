@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Shop · AuctionHub{% endblock %}
+{% block content %}
+<section class="market-hero mb-4">
+  <span class="eyebrow">THE AUCTIONHUB MARKETPLACE</span>
+  <h1>Find something worth bidding for.</h1>
+  <p>Explore approved products and live auctions from verified sellers.</p>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="#live-auctions">Browse live auctions</a>
+    <a class="btn btn-outline-primary" href="/register/">Create an account to sell</a>
+  </div>
+</section>
+<section id="live-auctions" class="mb-5">
+  <div class="section-heading"><div><span class="eyebrow">BID LIVE</span><h2>Live auctions</h2></div></div>
+  <div id="auction-list" class="market-grid" aria-live="polite"><p class="text-muted">Loading auctions…</p></div>
+</section>
+<section>
+  <div class="section-heading"><div><span class="eyebrow">DISCOVER</span><h2>Marketplace products</h2></div></div>
+  <div id="product-list" class="market-grid" aria-live="polite"><p class="text-muted">Loading products…</p></div>
+</section>
+<script>
+const market = window.marketplace;
+const auctionsRoot = document.getElementById('auction-list');
+const productsRoot = document.getElementById('product-list');
+
+function itemCard(title, description, price, badge, href, action) {
+  const card = document.createElement('article');
+  card.className = 'market-card';
+  const content = document.createElement('div');
+  content.className = 'market-card-content';
+  const tag = document.createElement('span');
+  tag.className = 'market-tag';
+  tag.textContent = badge;
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  const summary = document.createElement('p');
+  summary.textContent = description || 'Discover more about this listing.';
+  const amount = document.createElement('strong');
+  amount.className = 'market-price';
+  amount.textContent = market.money(price);
+  const link = document.createElement('a');
+  link.className = 'btn btn-primary';
+  link.href = href;
+  link.textContent = action;
+  content.append(tag, heading, summary, amount, link);
+  card.append(content);
+  return card;
+}
+
+async function loadMarketplace() {
+  try {
+    const [auctions, products] = await Promise.all([
+      market.api('/api/auctions/auctions/'),
+      market.api('/api/products/products/'),
+    ]);
+    const live = market.items(auctions).filter((auction) => auction.status === 'LIVE');
+    const approvedProducts = market.items(products).filter((product) =>
+      ['APPROVED', 'AUCTION'].includes(product.status)
+    );
+    auctionsRoot.replaceChildren(...live.map((auction) => itemCard(
+      auction.product_name,
+      `Seller: ${auction.seller_name} · ${auction.bid_count} bids`,
+      auction.current_highest_bid || auction.starting_price,
+      'LIVE AUCTION',
+      `/live-bidding/?auction=${encodeURIComponent(auction.id)}`,
+      'View and bid',
+    )));
+    productsRoot.replaceChildren(...approvedProducts.map((product) => itemCard(
+      product.name,
+      `${product.condition} · ${product.category_name || 'Marketplace'}`,
+      product.starting_price,
+      product.status === 'AUCTION' ? 'IN AUCTION' : 'APPROVED',
+      product.status === 'AUCTION' ? '/buyer-dashboard/' : `/product-details/?id=${encodeURIComponent(product.id)}`,
+      product.status === 'AUCTION' ? 'Browse auctions' : 'View product',
+    )));
+    if (!live.length) auctionsRoot.innerHTML = '<p class="empty-state">No live auctions right now. Check back soon.</p>';
+    if (!approvedProducts.length) productsRoot.innerHTML = '<p class="empty-state">No products are available yet.</p>';
+  } catch (error) {
+    for (const root of [auctionsRoot, productsRoot]) {
+      const message = document.createElement('p');
+      message.className = 'empty-state text-danger';
+      message.textContent = error.message;
+      root.replaceChildren(message);
+    }
+  }
+}
+loadMarketplace();
+</script>
+{% endblock %}

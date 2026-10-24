@@ -1,0 +1,63 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f7fb">
+  <title>{% block title %}AuctionHub{% endblock %}</title>
+  <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}" rel="stylesheet">
+  <script src="{% static 'js/marketplace.js' %}"></script>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark app-navbar">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="/">AuctionHub</a>
+      <div class="ms-auto d-flex align-items-center gap-2" id="app-nav">
+        <a class="nav-link text-white" href="/products/">Shop</a>
+        <a class="nav-link text-white" href="/seller-dashboard/">Sell</a>
+        <a class="nav-link text-white" href="/buyer-dashboard/">My bids</a>
+        <a class="nav-link text-white" id="nav-login" href="/login/">Sign in</a>
+        <a class="btn btn-light btn-sm fw-semibold" id="nav-register" href="/register/">Create account</a>
+        <a class="nav-link text-white d-none" id="nav-dashboard" href="/buyer-dashboard/">Dashboard</a>
+        <span class="nav-link text-white d-none" id="nav-user"></span>
+        <button class="btn btn-outline-light btn-sm d-none" id="nav-logout" type="button">Sign out</button>
+      </div>
+    </div>
+  </nav>
+  <main class="container py-5 app-main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="app-footer">
+    <div class="container text-muted small">
+      AuctionHub · Buy and sell with confidence
+    </div>
+  </footer>
+  <script>
+  (async () => {
+    if (!localStorage.getItem('access')) return;
+    try {
+      const user = await window.marketplace.api('/api/accounts/me/');
+      const dashboards = { BUYER: '/buyer-dashboard/', SELLER: '/seller-dashboard/', ADMIN: '/admin-dashboard/' };
+      document.getElementById('nav-login').classList.add('d-none');
+      document.getElementById('nav-register').classList.add('d-none');
+      document.getElementById('nav-dashboard').href = dashboards[user.role] || '/';
+      document.getElementById('nav-dashboard').classList.remove('d-none');
+      const accountLabel = document.getElementById('nav-user');
+      accountLabel.textContent = user.username;
+      accountLabel.classList.remove('d-none');
+      const logout = document.getElementById('nav-logout');
+      logout.classList.remove('d-none');
+      logout.addEventListener('click', () => {
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+        location.assign('/');
+      });
+    } catch (error) {
+      console.error('Unable to load the signed-in account:', error);
+    }
+  })();
+  </script>
+</body>
+</html>

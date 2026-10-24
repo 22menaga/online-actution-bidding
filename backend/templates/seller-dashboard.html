@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Seller Dashboard · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><span class="eyebrow">SELLER STUDIO</span><h1>Your products, your business.</h1><p>Create listings, submit products for review, and follow their status.</p></div>
+  <a class="btn btn-primary" href="/product-management/">Manage products</a>
+</div>
+<div class="seller-actions mb-5">
+  <a class="seller-action-card" href="/product-management/"><span class="seller-action-icon">＋</span><strong>List a product</strong><span>Create a listing for review.</span></a>
+  <a class="seller-action-card" href="/auction-management/"><span class="seller-action-icon">↗</span><strong>Start an auction</strong><span>Schedule an approved product.</span></a>
+  <a class="seller-action-card" href="/seller-verification/"><span class="seller-action-icon">✓</span><strong>Seller verification</strong><span>Complete verification to run auctions.</span></a>
+</div>
+<section>
+  <div class="section-heading"><div><span class="eyebrow">INVENTORY</span><h2>Recent listings</h2></div></div>
+  <div id="seller-products" class="activity-list" aria-live="polite"><p class="text-muted">Loading your products…</p></div>
+</section>
+<script>
+const root = document.getElementById('seller-products');
+async function loadSellerProducts() {
+  if (!localStorage.getItem('access')) {
+    root.innerHTML = '<p class="empty-state">Sign in to manage your listings. <a href="/login/">Sign in</a></p>';
+    return;
+  }
+  try {
+    const products = window.marketplace.items(await window.marketplace.api('/api/products/products/'));
+    const rows = products.slice(0, 8).map((product) => {
+      const row = document.createElement('div');
+      row.className = 'activity-row';
+      const name = document.createElement('span');
+      name.textContent = product.name;
+      const status = document.createElement('span');
+      status.className = 'status-pill';
+      status.textContent = product.status.replaceAll('_', ' ');
+      row.append(name, status);
+      return row;
+    });
+    root.replaceChildren(...rows);
+    if (!rows.length) root.innerHTML = '<p class="empty-state">No listings yet. <a href="/product-management/">List your first product</a></p>';
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadSellerProducts();
+</script>
+{% endblock %}

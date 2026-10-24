@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Admin dashboard · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">MARKETPLACE OPERATIONS</span><h1>Admin dashboard</h1><p>Review seller, product, and auction submissions.</p></div></div>
+<div id="admin-stats" class="admin-stats" aria-live="polite"><p class="empty-state">Loading review queues…</p></div>
+<div class="seller-actions mt-4">
+  <a class="seller-action-card" href="/seller-approval/"><span class="seller-action-icon">✓</span><strong>Seller verification</strong><span>Review seller documents.</span></a>
+  <a class="seller-action-card" href="/product-approval/"><span class="seller-action-icon">□</span><strong>Product review</strong><span>Approve products for listing.</span></a>
+  <a class="seller-action-card" href="/auction-approval/"><span class="seller-action-icon">↗</span><strong>Auction review</strong><span>Approve auction schedules.</span></a>
+  <a class="seller-action-card" href="/analytics/"><span class="seller-action-icon">▤</span><strong>Platform analytics</strong><span>View marketplace activity.</span></a>
+  <a class="seller-action-card" href="/user-management/"><span class="seller-action-icon">◎</span><strong>User management</strong><span>Review account access.</span></a>
+  <a class="seller-action-card" href="/audit-logs/"><span class="seller-action-icon">≡</span><strong>Audit log</strong><span>Review critical actions.</span></a>
+</div>
+<script>
+async function loadAdminStats() {
+  const root = document.getElementById('admin-stats');
+  try {
+    const stats = await window.marketplace.api('/api/dashboard/analytics/');
+    const entries = [
+      ['Pending sellers', stats.pending_seller_verifications, '/seller-approval/'],
+      ['Pending products', stats.pending_products, '/product-approval/'],
+      ['Pending auctions', stats.pending_auctions, '/auction-approval/'],
+      ['Live auctions', stats.live_auctions, '/auction-approval/'],
+    ];
+    const cards = entries.map(([label, value, href]) => {
+      const link = document.createElement('a');
+      link.className = 'admin-stat-card';
+      link.href = href;
+      const caption = document.createElement('span');
+      caption.textContent = label;
+      const metric = document.createElement('strong');
+      metric.textContent = String(value ?? 0);
+      link.append(caption, metric);
+      return link;
+    });
+    root.replaceChildren(...cards);
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadAdminStats();
+</script>
+{% endblock %}

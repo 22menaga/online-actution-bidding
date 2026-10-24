@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}AuctionHub · Buy, bid, sell{% endblock %}
+{% block content %}
+<section class="home-hero">
+  <div class="home-copy">
+    <span class="eyebrow">BUY · BID · SELL</span>
+    <h1 class="display-4 fw-bold">Great finds. Fair bids. Real sellers.</h1>
+    <p class="lead">Discover one-of-a-kind products, follow live auctions, and list your own items in a marketplace built for confident buying and selling.</p>
+    <div class="d-flex flex-wrap gap-3">
+      <a href="/products/" class="btn btn-primary btn-lg">Explore marketplace</a>
+      <a href="/seller-dashboard/" class="btn btn-outline-primary btn-lg">Start selling</a>
+    </div>
+  </div>
+  <div class="home-panel">
+    <span class="market-tag">HOW IT WORKS</span>
+    <ol class="how-it-works">
+      <li><strong>Discover</strong><span>Browse approved products and live auctions.</span></li>
+      <li><strong>Bid</strong><span>Compete in real time with clear minimum bids.</span></li>
+      <li><strong>Sell</strong><span>Submit a product and schedule it after approval.</span></li>
+    </ol>
+  </div>
+</section>
+{% endblock %}

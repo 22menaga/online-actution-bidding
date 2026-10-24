@@ -1,0 +1,4 @@
+from django.urls import path
+from .wallet_views import WalletView,PaymentMethodsView,TopUpStartView,TopUpVerifyView,TopUpFakeView,PayWithCoinsView
+from .views import MyPaymentsView,CheckoutView,RazorpayWebhookView,VerifyPaymentView,SyncPaymentView,MockPayView
+urlpatterns=[path('',MyPaymentsView.as_view()),path('wallet/',WalletView.as_view()),path('methods/',PaymentMethodsView.as_view()),path('wallet/topup/',TopUpStartView.as_view()),path('wallet/topup/<int:pk>/verify/',TopUpVerifyView.as_view()),path('wallet/topup/<int:pk>/fake-pay/',TopUpFakeView.as_view()),path('<int:pk>/pay-coins/',PayWithCoinsView.as_view()),path('<int:pk>/checkout/',CheckoutView.as_view()),path('<int:pk>/sync/',SyncPaymentView.as_view()),path('<int:pk>/mock-pay/',MockPayView.as_view()),path('<int:pk>/verify/',VerifyPaymentView.as_view()),path('webhook/razorpay/',RazorpayWebhookView.as_view())]

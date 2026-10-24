@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Notifications · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">YOUR ACCOUNT</span><h1>Notifications</h1><p>Updates about your bids, listings, and payments.</p></div></div>
+<div id="notifications" class="activity-list" aria-live="polite"><p class="empty-state">Loading notifications…</p></div>
+<script>
+async function loadNotifications() {
+  const root = document.getElementById('notifications');
+  if (!localStorage.getItem('access')) {
+    root.innerHTML = '<p class="empty-state">Sign in to view notifications. <a href="/login/">Sign in</a></p>';
+    return;
+  }
+  try {
+    const data = await window.marketplace.api('/api/notifications/');
+    const notifications = window.marketplace.items(data);
+    const rows = notifications.map((notification) => {
+      const row = document.createElement('article');
+      row.className = 'activity-row';
+      const content = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = notification.title;
+      const body = document.createElement('p');
+      body.className = 'mb-1 text-muted';
+      body.textContent = notification.body;
+      const date = document.createElement('small');
+      date.className = 'text-muted';
+      date.textContent = new Date(notification.created_at).toLocaleString();
+      content.append(title, body, date);
+      row.append(content);
+      if (!notification.read_at) {
+        const button = document.createElement('button');
+        button.className = 'btn btn-outline-primary btn-sm';
+        button.textContent = 'Mark read';
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            await window.marketplace.api(`/api/notifications/${notification.id}/read/`, { method: 'PATCH', body: JSON.stringify({}) });
+            await loadNotifications();
+          } catch (error) {
+            button.disabled = false;
+            body.textContent = error.message;
+          }
+        });
+        row.append(button);
+      }
+      return row;
+    });
+    root.replaceChildren(...rows);
+    if (!rows.length) root.innerHTML = '<p class="empty-state">You are all caught up.</p>';
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadNotifications();
+</script>
+{% endblock %}

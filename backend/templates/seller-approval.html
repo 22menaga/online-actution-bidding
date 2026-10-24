@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Seller verification review · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">MARKETPLACE OPERATIONS</span><h1>Seller verification</h1><p>Review seller-submitted details before enabling auctions.</p></div><a class="btn btn-outline-primary" href="/admin-dashboard/">Back to admin dashboard</a></div>
+<div id="seller-review-list" class="review-grid" aria-live="polite"><p class="empty-state">Loading seller requests…</p></div>
+<p id="seller-review-message" class="form-message" role="status" aria-live="polite"></p>
+<script>
+const sellerReviewRoot = document.getElementById('seller-review-list');
+const sellerReviewMessage = document.getElementById('seller-review-message');
+async function loadSellerQueue() {
+  try {
+    const response = await window.marketplace.api('/api/accounts/seller-verifications/');
+    const requests = window.marketplace.items(response).filter((request) => request.status === 'PENDING');
+    const cards = requests.map((request) => {
+      const card = document.createElement('article');
+      card.className = 'review-card';
+      const title = document.createElement('h2');
+      title.textContent = request.legal_name;
+      const detail = document.createElement('p');
+      detail.textContent = `${request.document_type} · Reference: ${request.document_reference}`;
+      const actions = document.createElement('div');
+      actions.className = 'd-flex flex-wrap gap-2 mt-3';
+      for (const [label, decision] of [['Approve seller', 'APPROVED'], ['Reject', 'REJECTED']]) {
+        const button = document.createElement('button');
+        button.className = decision === 'APPROVED' ? 'btn btn-primary' : 'btn btn-outline-danger';
+        button.textContent = label;
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          const notes = decision === 'REJECTED' ? window.prompt('Reason for rejection:') : '';
+          if (decision === 'REJECTED' && notes === null) {
+            button.disabled = false;
+            return;
+          }
+          try {
+            await window.marketplace.api(`/api/accounts/seller-verifications/${request.id}/review/`, {
+              method: 'POST',
+              body: JSON.stringify({ decision, notes: notes || '' }),
+            });
+            await loadSellerQueue();
+          } catch (error) {
+            sellerReviewMessage.textContent = error.message;
+            sellerReviewMessage.classList.add('text-danger');
+            button.disabled = false;
+          }
+        });
+        actions.append(button);
+      }
+      card.append(title, detail, actions);
+      return card;
+    });
+    sellerReviewRoot.replaceChildren(...cards);
+    if (!cards.length) sellerReviewRoot.innerHTML = '<p class="empty-state">There are no sellers waiting for review.</p>';
+  } catch (error) {
+    sellerReviewRoot.textContent = error.message;
+  }
+}
+if (!localStorage.getItem('access')) sellerReviewRoot.innerHTML = '<p class="empty-state">Sign in as an administrator to review sellers. <a href="/login/">Sign in</a></p>';
+else loadSellerQueue();
+</script>
+{% endblock %}

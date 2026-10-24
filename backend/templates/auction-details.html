@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Auction details · AuctionHub{% endblock %}
+{% block content %}
+<a class="back-link" href="/products/">← Back to marketplace</a>
+<div id="auction-details" class="form-panel mt-3" aria-live="polite">Loading auction…</div>
+<script>
+async function loadAuctionDetails() {
+  const root = document.getElementById('auction-details');
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id || !/^\d+$/.test(id)) {
+    root.textContent = 'Choose an auction from the marketplace to view its details.';
+    return;
+  }
+  try {
+    const auction = await window.marketplace.api(`/api/auctions/auctions/${encodeURIComponent(id)}/`);
+    const badge = document.createElement('span');
+    badge.className = 'market-tag';
+    badge.textContent = auction.status.replaceAll('_', ' ');
+    const title = document.createElement('h1');
+    title.className = 'mt-3';
+    title.textContent = auction.product_name;
+    const seller = document.createElement('p');
+    seller.className = 'text-muted';
+    seller.textContent = `Listed by ${auction.seller_name} · ${auction.bid_count} bids`;
+    const price = document.createElement('p');
+    price.className = 'market-price';
+    price.textContent = window.marketplace.money(auction.current_highest_bid || auction.starting_price);
+    const link = document.createElement('a');
+    link.className = 'btn btn-primary';
+    link.href = `/live-bidding/?auction=${encodeURIComponent(auction.id)}`;
+    link.textContent = auction.status === 'LIVE' ? 'View and place a bid' : 'View auction';
+    root.replaceChildren(badge, title, seller, price, link);
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadAuctionDetails();
+</script>
+{% endblock %}

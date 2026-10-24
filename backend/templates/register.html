@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Create account · AuctionHub{% endblock %}
+{% block content %}
+<section class="auth-layout">
+  <div class="auth-aside">
+    <span class="eyebrow">JOIN AUCTIONHUB</span>
+    <h1>Your next great find starts here.</h1>
+    <p>Create an account to discover listings, place bids, or start your seller journey.</p>
+    <div class="auth-points">
+      <span><strong>01</strong> Browse approved listings</span>
+      <span><strong>02</strong> Follow live bidding</span>
+      <span><strong>03</strong> Manage your account securely</span>
+    </div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-card-heading">
+      <span class="eyebrow">GET STARTED</span>
+      <h2>Create your account</h2>
+      <p>It only takes a moment to join the marketplace.</p>
+    </div>
+    <form id="register" class="auth-form">
+      <label for="username">Username</label>
+      <input class="form-control" id="username" name="username" autocomplete="username" minlength="3" maxlength="150" required>
+      <label for="email">Email address</label>
+      <input class="form-control" id="email" name="email" type="email" autocomplete="email" required>
+      <label for="password">Password</label>
+      <input class="form-control" id="password" name="password" type="password" autocomplete="new-password" minlength="10" aria-describedby="password-help" required>
+      <small id="password-help" class="field-help">Use at least 10 characters. Avoid common or easily guessed passwords.</small>
+      <label for="role">I want to</label>
+      <select class="form-select" id="role" name="role">
+        <option value="BUYER">Buy and bid</option>
+        <option value="SELLER">Sell on AuctionHub</option>
+      </select>
+      <button class="btn btn-primary w-100 auth-submit" type="submit">Create account</button>
+    </form>
+    <div id="msg" class="form-message" role="status" aria-live="polite"></div>
+    <p class="auth-switch">Already have an account? <a href="/login/">Sign in</a></p>
+  </div>
+</section>
+<script>
+const registrationForm = document.getElementById('register');
+const registrationMessage = document.getElementById('msg');
+
+function describeRegistrationError(payload) {
+  if (payload && typeof payload === 'object') {
+    return Object.entries(payload)
+      .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(' ') : messages}`)
+      .join(' ');
+  }
+  return 'Unable to create your account. Please try again.';
+}
+
+registrationForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = registrationForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = 'Creating account…';
+  registrationMessage.textContent = '';
+  registrationMessage.className = 'form-message';
+
+  try {
+    const formData = new FormData(registrationForm);
+    const registrationResponse = await fetch('/api/accounts/register/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(formData)),
+    });
+    const registrationResult = await registrationResponse.json();
+    if (!registrationResponse.ok) {
+      throw new Error(describeRegistrationError(registrationResult));
+    }
+
+    const tokenResponse = await fetch('/api/auth/token/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: formData.get('username'),
+        password: formData.get('password'),
+      }),
+    });
+    const tokens = await tokenResponse.json();
+    if (!tokenResponse.ok) {
+      registrationMessage.textContent = 'Account created. Please sign in to continue.';
+      registrationMessage.classList.add('is-success');
+      location.assign('/login/');
+      return;
+    }
+
+    const profileResponse = await fetch('/api/accounts/me/', {
+      headers: { Authorization: `Bearer ${tokens.access}` },
+    });
+    if (!profileResponse.ok) {
+      registrationMessage.textContent = 'Account created. Please sign in to continue.';
+      registrationMessage.classList.add('is-success');
+      location.assign('/login/');
+      return;
+    }
+
+    const profile = await profileResponse.json();
+    const destination = {
+      BUYER: '/buyer-dashboard/',
+      SELLER: '/seller-dashboard/',
+    }[profile.role];
+    if (!destination) throw new Error('Your account role does not have a dashboard.');
+
+    localStorage.setItem('access', tokens.access);
+    localStorage.setItem('refresh', tokens.refresh);
+    registrationMessage.textContent = 'Account created. Taking you to your dashboard…';
+    registrationMessage.classList.add('is-success');
+    location.assign(destination);
+  } catch (error) {
+    registrationMessage.textContent = error.message || 'Unable to create your account. Please try again.';
+    registrationMessage.classList.add('is-error');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Create account';
+  }
+});
+</script>
+{% endblock %}

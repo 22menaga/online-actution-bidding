@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Auction review · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">MARKETPLACE OPERATIONS</span><h1>Auction review</h1><p>Approve seller auction schedules to publish them for bidding.</p></div><a class="btn btn-outline-primary" href="/admin-dashboard/">Back to admin dashboard</a></div>
+<div id="auction-review-list" class="review-grid" aria-live="polite"><p class="empty-state">Loading auctions for review…</p></div>
+<p id="auction-review-message" class="form-message" role="status" aria-live="polite"></p>
+<script>
+const auctionReviewRoot = document.getElementById('auction-review-list');
+const auctionReviewMessage = document.getElementById('auction-review-message');
+async function loadAuctionQueue() {
+  try {
+    const response = await window.marketplace.api('/api/auctions/auctions/');
+    const auctions = window.marketplace.items(response).filter((auction) => auction.status === 'PENDING_APPROVAL');
+    const cards = auctions.map((auction) => {
+      const card = document.createElement('article');
+      card.className = 'review-card';
+      const title = document.createElement('h2');
+      title.textContent = auction.product_name;
+      const details = document.createElement('p');
+      details.className = 'text-muted';
+      details.textContent = `Seller: ${auction.seller_name} · Starts ${new Date(auction.start_at).toLocaleString()} · Ends ${new Date(auction.end_at).toLocaleString()}`;
+      const price = document.createElement('strong');
+      price.className = 'market-price';
+      price.textContent = `${window.marketplace.money(auction.starting_price)} · ${window.marketplace.money(auction.min_increment)} minimum increment`;
+      const approve = document.createElement('button');
+      approve.className = 'btn btn-primary mt-3';
+      approve.textContent = 'Approve auction';
+      approve.addEventListener('click', async () => {
+        approve.disabled = true;
+        try {
+          await window.marketplace.api(`/api/auctions/auctions/${auction.id}/approve/`, { method: 'POST' });
+          await loadAuctionQueue();
+        } catch (error) {
+          auctionReviewMessage.textContent = error.message;
+          auctionReviewMessage.classList.add('text-danger');
+          approve.disabled = false;
+        }
+      });
+      card.append(title, details, price, approve);
+      return card;
+    });
+    auctionReviewRoot.replaceChildren(...cards);
+    if (!cards.length) auctionReviewRoot.innerHTML = '<p class="empty-state">There are no auctions waiting for approval.</p>';
+  } catch (error) {
+    auctionReviewRoot.textContent = error.message;
+  }
+}
+if (!localStorage.getItem('access')) auctionReviewRoot.innerHTML = '<p class="empty-state">Sign in as an administrator to review auctions. <a href="/login/">Sign in</a></p>';
+else loadAuctionQueue();
+</script>
+{% endblock %}

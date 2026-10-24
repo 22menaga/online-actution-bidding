@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Product review · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">MARKETPLACE OPERATIONS</span><h1>Product review</h1><p>Approve or reject seller product submissions.</p></div><a class="btn btn-outline-primary" href="/admin-dashboard/">Back to admin dashboard</a></div>
+<div id="review-list" class="review-grid" aria-live="polite"><p class="empty-state">Loading products for review…</p></div>
+<p id="review-message" class="form-message" role="status" aria-live="polite"></p>
+<script>
+const reviewRoot = document.getElementById('review-list');
+const reviewMessage = document.getElementById('review-message');
+function makeReviewButton(label, decision, product) {
+  const button = document.createElement('button');
+  button.className = decision === 'APPROVED' ? 'btn btn-primary' : 'btn btn-outline-danger';
+  button.textContent = label;
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    const reason = decision === 'REJECTED' ? window.prompt('Reason for rejection:') : '';
+    if (decision === 'REJECTED' && reason === null) {
+      button.disabled = false;
+      return;
+    }
+    try {
+      await window.marketplace.api(`/api/products/products/${product.id}/review/`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, reason: reason || '' }),
+      });
+      await loadProductQueue();
+    } catch (error) {
+      reviewMessage.textContent = error.message;
+      reviewMessage.classList.add('text-danger');
+      button.disabled = false;
+    }
+  });
+  return button;
+}
+async function loadProductQueue() {
+  try {
+    const response = await window.marketplace.api('/api/products/products/?status=PENDING_APPROVAL');
+    const products = window.marketplace.items(response).filter((product) => product.status === 'PENDING_APPROVAL');
+    const cards = products.map((product) => {
+      const card = document.createElement('article');
+      card.className = 'review-card';
+      const title = document.createElement('h2');
+      title.textContent = product.name;
+      const seller = document.createElement('p');
+      seller.className = 'text-muted';
+      seller.textContent = `Seller: ${product.seller_name} · ${product.category_name || 'Uncategorized'} · ${product.condition}`;
+      const description = document.createElement('p');
+      description.textContent = product.description;
+      const amount = document.createElement('strong');
+      amount.className = 'market-price';
+      amount.textContent = window.marketplace.money(product.starting_price);
+      const actions = document.createElement('div');
+      actions.className = 'd-flex flex-wrap gap-2 mt-3';
+      actions.append(makeReviewButton('Approve product', 'APPROVED', product), makeReviewButton('Reject', 'REJECTED', product));
+      card.append(title, seller, description, amount, actions);
+      return card;
+    });
+    reviewRoot.replaceChildren(...cards);
+    if (!cards.length) reviewRoot.innerHTML = '<p class="empty-state">There are no products waiting for review.</p>';
+  } catch (error) {
+    reviewRoot.textContent = error.message;
+  }
+}
+if (!localStorage.getItem('access')) reviewRoot.innerHTML = '<p class="empty-state">Sign in as an administrator to review products. <a href="/login/">Sign in</a></p>';
+else loadProductQueue();
+</script>
+{% endblock %}

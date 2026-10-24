@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Buyer Dashboard · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><span class="eyebrow">YOUR MARKETPLACE</span><h1>Buyer dashboard</h1><p>Discover live auctions and keep track of your bids.</p></div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-primary" href="/won-auctions/">Won auctions</a>
+    <a class="btn btn-primary" href="/products/">Browse marketplace</a>
+  </div>
+</div>
+<p id="buyer-notice" class="alert alert-warning d-none" role="status"></p>
+<section class="mb-5">
+  <div class="section-heading"><div><span class="eyebrow">LIVE NOW</span><h2>Auctions to explore</h2></div></div>
+  <div id="buyer-auctions" class="market-grid" aria-live="polite"><p class="text-muted">Loading auctions…</p></div>
+</section>
+<section>
+  <div class="section-heading"><div><span class="eyebrow">YOUR ACTIVITY</span><h2>Recent bids</h2></div><a href="/my-bids/">View all bids</a></div>
+  <div id="buyer-bids" class="activity-list" aria-live="polite"><p class="text-muted">Loading your bids…</p></div>
+</section>
+<script>
+const market = window.marketplace;
+const auctionsRoot = document.getElementById('buyer-auctions');
+const bidsRoot = document.getElementById('buyer-bids');
+function createAuctionCard(auction) {
+  const card = document.createElement('article');
+  card.className = 'market-card';
+  const body = document.createElement('div');
+  body.className = 'market-card-content';
+  const tag = document.createElement('span');
+  tag.className = 'market-tag';
+  tag.textContent = auction.status === 'LIVE' ? 'LIVE NOW' : 'UPCOMING';
+  const title = document.createElement('h3');
+  title.textContent = auction.product_name;
+  const detail = document.createElement('p');
+  detail.textContent = `Seller: ${auction.seller_name} · ${auction.bid_count} bids`;
+  const price = document.createElement('strong');
+  price.className = 'market-price';
+  price.textContent = market.money(auction.current_highest_bid || auction.starting_price);
+  const link = document.createElement('a');
+  link.className = 'btn btn-primary';
+  link.href = `/live-bidding/?auction=${encodeURIComponent(auction.id)}`;
+  link.textContent = auction.status === 'LIVE' ? 'Place a bid' : 'View auction';
+  body.append(tag, title, detail, price, link);
+  card.append(body);
+  return card;
+}
+async function loadBuyerDashboard() {
+  if (!localStorage.getItem('access')) {
+    auctionsRoot.innerHTML = '<p class="empty-state">Sign in to see your buyer dashboard. <a href="/login/">Sign in</a></p>';
+    bidsRoot.replaceChildren();
+    return;
+  }
+  window.marketplace.api('/api/accounts/me/').then((profile) => {
+    if (!profile.email_verified) {
+      const notice = document.getElementById('buyer-notice');
+      notice.textContent = 'Verify your email before bidding. In the local Docker setup, find the verification link in the web container logs.';
+      notice.classList.remove('d-none');
+    }
+  }).catch((error) => {
+    const notice = document.getElementById('buyer-notice');
+    notice.textContent = error.message;
+    notice.classList.remove('d-none');
+  });
+  try {
+    const [auctions, bids] = await Promise.all([
+      market.api('/api/auctions/auctions/'),
+      market.api('/api/bidding/bids/'),
+    ]);
+    const available = market.items(auctions).filter((auction) => ['LIVE', 'SCHEDULED'].includes(auction.status));
+    auctionsRoot.replaceChildren(...available.map(createAuctionCard));
+    if (!available.length) auctionsRoot.innerHTML = '<p class="empty-state">No live or upcoming auctions. <a href="/products/">Browse products</a></p>';
+    const recentBids = market.items(bids).slice(0, 8).map((bid) => {
+      const row = document.createElement('a');
+      row.className = 'activity-row';
+      row.href = `/live-bidding/?auction=${encodeURIComponent(bid.auction)}`;
+      const name = document.createElement('span');
+      name.textContent = `Auction #${bid.auction}`;
+      const amount = document.createElement('strong');
+      amount.textContent = market.money(bid.amount);
+      row.append(name, amount);
+      return row;
+    });
+    bidsRoot.replaceChildren(...recentBids);
+    if (!recentBids.length) bidsRoot.innerHTML = '<p class="empty-state">You have not placed a bid yet.</p>';
+  } catch (error) {
+    auctionsRoot.textContent = error.message;
+    bidsRoot.replaceChildren();
+  }
+}
+loadBuyerDashboard();
+</script>
+{% endblock %}

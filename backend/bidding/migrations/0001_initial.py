@@ -1,0 +1,5 @@
+from django.db import migrations,models
+import django.db.models.deletion
+class Migration(migrations.Migration):
+ dependencies=[('accounts','0001_initial'),('auctions','0001_initial')]
+ operations=[migrations.CreateModel(name='Bid',fields=[('id',models.BigAutoField(auto_created=True,primary_key=True,serialize=False,verbose_name='ID')),('amount',models.DecimalField(decimal_places=2,max_digits=14)),('client_reference',models.UUIDField(blank=True,null=True)),('created_at',models.DateTimeField(auto_now_add=True)),('auction',models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,related_name='bids',to='auctions.auction')),('bidder',models.ForeignKey(on_delete=django.db.models.deletion.PROTECT,related_name='bids',to='accounts.user'))],options={'indexes':[models.Index(fields=['auction','-created_at'],name='bidding_bid_auction_5bc2fb_idx'),models.Index(fields=['bidder','-created_at'],name='bidding_bid_bidder_6bbdb6_idx')]}) ,migrations.AddConstraint(model_name='bid',constraint=models.CheckConstraint(condition=models.Q(('amount__gt',0)),name='bid_amount_positive'))]

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Sign in · AuctionHub{% endblock %}
+{% block content %}
+<section class="auth-layout">
+  <div class="auth-aside">
+    <span class="eyebrow">AUCTIONHUB ACCOUNT</span>
+    <h1>Welcome back.</h1>
+    <p>Sign in to follow live auctions, manage your listings, and keep every bid in view.</p>
+    <div class="auth-points">
+      <span><strong>01</strong> Real-time auctions</span>
+      <span><strong>02</strong> Secure account access</span>
+      <span><strong>03</strong> Your marketplace, in one place</span>
+    </div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-card-heading">
+      <span class="eyebrow">YOUR MARKETPLACE</span>
+      <h2>Sign in</h2>
+      <p>Enter your username and password to continue.</p>
+    </div>
+    <form id="login" class="auth-form">
+      <label for="username">Username</label>
+      <input class="form-control" id="username" name="username" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="btn btn-primary w-100 auth-submit" type="submit">Sign in</button>
+    </form>
+    <div id="msg" class="form-message" role="alert" aria-live="polite"></div>
+    <p class="auth-switch">New to AuctionHub? <a href="/register/">Create an account</a></p>
+  </div>
+</section>
+<script>
+const loginForm = document.getElementById('login');
+const loginMessage = document.getElementById('msg');
+
+function showLoginError(payload) {
+  if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.detail)) return payload.detail.join(' ');
+    if (typeof payload.detail === 'string') return payload.detail;
+    return Object.values(payload).flat().join(' ');
+  }
+  return 'Unable to sign in. Check your details and try again.';
+}
+
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = loginForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = 'Signing in…';
+  loginMessage.textContent = '';
+  loginMessage.className = 'form-message';
+
+  try {
+    const tokenResponse = await fetch('/api/auth/token/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value,
+      }),
+    });
+    const tokens = await tokenResponse.json();
+    if (!tokenResponse.ok) throw new Error(showLoginError(tokens));
+
+    const profileResponse = await fetch('/api/accounts/me/', {
+      headers: { Authorization: `Bearer ${tokens.access}` },
+    });
+    if (!profileResponse.ok) throw new Error('Unable to load your account. Please try again.');
+
+    const profile = await profileResponse.json();
+    const destination = {
+      ADMIN: '/admin-dashboard/',
+      BUYER: '/buyer-dashboard/',
+      SELLER: '/seller-dashboard/',
+    }[profile.role];
+    if (!destination) throw new Error('Your account role does not have a dashboard.');
+
+    localStorage.setItem('access', tokens.access);
+    localStorage.setItem('refresh', tokens.refresh);
+    location.assign(destination);
+  } catch (error) {
+    loginMessage.textContent = error.message || 'Unable to sign in. Please try again.';
+    loginMessage.classList.add('is-error');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Sign in';
+  }
+});
+</script>
+{% endblock %}

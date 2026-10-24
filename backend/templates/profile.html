@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Your profile · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">YOUR ACCOUNT</span><h1>Profile</h1><p>Manage your username and email address.</p></div></div>
+<form id="profile-form" class="form-panel profile-panel">
+  <label class="form-label" for="username">Username</label><input id="username" class="form-control mb-3" required maxlength="150">
+  <label class="form-label" for="email">Email address</label><input id="email" class="form-control mb-3" type="email" required>
+  <p id="account-status" class="field-help"></p>
+  <button class="btn btn-primary" type="submit">Save changes</button>
+  <p id="profile-message" class="form-message" role="status"></p>
+</form>
+<script>
+const profileForm = document.getElementById('profile-form');
+const profileMessage = document.getElementById('profile-message');
+if (!localStorage.getItem('access')) {
+  profileForm.innerHTML = '<p class="empty-state">Sign in to manage your profile. <a href="/login/">Sign in</a></p>';
+} else {
+  window.marketplace.api('/api/accounts/me/').then((user) => {
+    document.getElementById('username').value = user.username;
+    document.getElementById('email').value = user.email;
+    document.getElementById('account-status').textContent = `${user.role} · ${user.email_verified ? 'Email verified' : 'Email not verified'}`;
+  }).catch((error) => { profileMessage.textContent = error.message; });
+}
+profileForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = profileForm.querySelector('button[type="submit"]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    const user = await window.marketplace.api('/api/accounts/me/', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        username: document.getElementById('username').value.trim(),
+        email: document.getElementById('email').value.trim(),
+      }),
+    });
+    profileMessage.textContent = 'Profile updated.';
+    document.getElementById('account-status').textContent = `${user.role} · ${user.email_verified ? 'Email verified' : 'Email not verified'}`;
+  } catch (error) {
+    profileMessage.textContent = error.message;
+    profileMessage.classList.add('text-danger');
+  } finally {
+    button.disabled = false;
+  }
+});
+</script>
+{% endblock %}

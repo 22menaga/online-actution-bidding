@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}My bids · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">YOUR ACTIVITY</span><h1>My bids</h1><p>Review your bids and return to any auction.</p></div><a class="btn btn-primary" href="/products/">Find an auction</a></div>
+<div id="bid-list" class="activity-list" aria-live="polite"><p class="empty-state">Loading your bids…</p></div>
+<script>
+async function loadBids() {
+  const root = document.getElementById('bid-list');
+  if (!localStorage.getItem('access')) {
+    root.innerHTML = '<p class="empty-state">Sign in to view your bids. <a href="/login/">Sign in</a></p>';
+    return;
+  }
+  try {
+    const [bidData, auctionData] = await Promise.all([
+      window.marketplace.api('/api/bidding/bids/'),
+      window.marketplace.api('/api/auctions/auctions/'),
+    ]);
+    const names = new Map(window.marketplace.items(auctionData).map((auction) => [String(auction.id), auction.product_name]));
+    const rows = window.marketplace.items(bidData).map((bid) => {
+      const row = document.createElement('a');
+      row.className = 'activity-row';
+      row.href = `/live-bidding/?auction=${encodeURIComponent(bid.auction)}`;
+      const title = document.createElement('span');
+      title.textContent = names.get(String(bid.auction)) || `Auction #${bid.auction}`;
+      const amount = document.createElement('strong');
+      amount.textContent = window.marketplace.money(bid.amount);
+      row.append(title, amount);
+      return row;
+    });
+    root.replaceChildren(...rows);
+    if (!rows.length) root.innerHTML = '<p class="empty-state">You have not placed a bid yet. <a href="/products/">Browse live auctions</a></p>';
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadBids();
+</script>
+{% endblock %}

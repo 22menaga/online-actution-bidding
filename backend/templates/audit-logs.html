@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Audit log · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">MARKETPLACE OPERATIONS</span><h1>Audit log</h1><p>Recent security-sensitive marketplace actions.</p></div><a class="btn btn-outline-primary" href="/admin-dashboard/">Back to admin dashboard</a></div>
+<div id="audit-list" class="activity-list" aria-live="polite"><p class="empty-state">Loading audit events…</p></div>
+<script>
+async function loadAuditEvents() {
+  const root = document.getElementById('audit-list');
+  try {
+    const response = await window.marketplace.api('/api/audit/');
+    const events = window.marketplace.items(response);
+    const rows = events.map((event) => {
+      const row = document.createElement('article');
+      row.className = 'activity-row';
+      const details = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = `${event.action} · ${event.object_type || 'Account'} ${event.object_id || ''}`;
+      const meta = document.createElement('small');
+      meta.className = 'd-block text-muted';
+      meta.textContent = `User #${event.actor ?? 'system'} · ${new Date(event.created_at).toLocaleString()}`;
+      details.append(title, meta);
+      const data = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = 'Details';
+      const value = document.createElement('pre');
+      value.className = 'audit-metadata';
+      value.textContent = JSON.stringify(event.metadata, null, 2);
+      data.append(summary, value);
+      row.append(details, data);
+      return row;
+    });
+    root.replaceChildren(...rows);
+    if (!rows.length) root.innerHTML = '<p class="empty-state">No audit events have been recorded.</p>';
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+if (!localStorage.getItem('access')) document.getElementById('audit-list').innerHTML = '<p class="empty-state">Sign in as an administrator to view audit events. <a href="/login/">Sign in</a></p>';
+else loadAuditEvents();
+</script>
+{% endblock %}

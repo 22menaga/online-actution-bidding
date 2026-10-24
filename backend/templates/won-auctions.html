@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Won auctions · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">YOUR PURCHASES</span><h1>Won auctions</h1><p>Review winning bids and continue to secure checkout.</p></div><a class="btn btn-outline-primary" href="/payment/">Payment history</a></div>
+<div id="wins-list" class="activity-list" aria-live="polite"><p class="empty-state">Loading your won auctions…</p></div>
+<script>
+async function loadWins() {
+  const root = document.getElementById('wins-list');
+  if (!localStorage.getItem('access')) {
+    root.innerHTML = '<p class="empty-state">Sign in to view won auctions. <a href="/login/">Sign in</a></p>';
+    return;
+  }
+  try {
+    const [paymentData, auctionData] = await Promise.all([
+      window.marketplace.api('/api/payments/'),
+      window.marketplace.api('/api/auctions/auctions/'),
+    ]);
+    const names = new Map(window.marketplace.items(auctionData).map((auction) => [String(auction.id), auction.product_name]));
+    const rows = window.marketplace.items(paymentData).map((payment) => {
+      const row = document.createElement('div');
+      row.className = 'activity-row';
+      const name = document.createElement('span');
+      name.textContent = names.get(String(payment.auction)) || `Auction #${payment.auction}`;
+      const details = document.createElement('span');
+      details.textContent = `${window.marketplace.money(payment.amount)} · ${payment.status}`;
+      row.append(name, details);
+      return row;
+    });
+    root.replaceChildren(...rows);
+    if (!rows.length) root.innerHTML = '<p class="empty-state">No winning auctions yet. <a href="/products/">Explore live auctions</a></p>';
+  } catch (error) {
+    root.textContent = error.message;
+  }
+}
+loadWins();
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}User management · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">MARKETPLACE OPERATIONS</span><h1>User management</h1><p>Review account roles and suspend accounts that violate marketplace rules.</p></div><a class="btn btn-outline-primary" href="/admin-dashboard/">Back to admin dashboard</a></div>
+<div id="user-list" class="activity-list" aria-live="polite"><p class="empty-state">Loading users…</p></div>
+<p id="user-message" class="form-message" role="status"></p>
+<script>
+const userRoot = document.getElementById('user-list');
+const userMessage = document.getElementById('user-message');
+async function loadUsers() {
+  try {
+    const data = await window.marketplace.api('/api/accounts/admin/users/');
+    const users = window.marketplace.items(data);
+    const rows = users.map((user) => {
+      const row = document.createElement('div');
+      row.className = 'activity-row';
+      const label = document.createElement('span');
+      label.textContent = `${user.username} · ${user.email} · ${user.role}${user.is_suspended ? ' · SUSPENDED' : ''}`;
+      row.append(label);
+      if (!user.is_suspended) {
+        const suspend = document.createElement('button');
+        suspend.className = 'btn btn-outline-danger btn-sm';
+        suspend.textContent = 'Suspend account';
+        suspend.addEventListener('click', async () => {
+          if (!window.confirm(`Suspend ${user.username}? They will lose access to marketplace actions.`)) return;
+          suspend.disabled = true;
+          try {
+            await window.marketplace.api(`/api/accounts/admin/users/${user.id}/suspend/`, { method: 'POST', body: JSON.stringify({}) });
+            await loadUsers();
+          } catch (error) {
+            userMessage.textContent = error.message;
+            userMessage.classList.add('text-danger');
+            suspend.disabled = false;
+          }
+        });
+        row.append(suspend);
+      }
+      return row;
+    });
+    userRoot.replaceChildren(...rows);
+    if (!rows.length) userRoot.innerHTML = '<p class="empty-state">No users found.</p>';
+  } catch (error) {
+    userRoot.textContent = error.message;
+  }
+}
+if (!localStorage.getItem('access')) userRoot.innerHTML = '<p class="empty-state">Sign in as an administrator to manage users. <a href="/login/">Sign in</a></p>';
+else loadUsers();
+</script>
+{% endblock %}

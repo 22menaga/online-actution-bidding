@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Seller verification · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">SELLER STUDIO</span><h1>Seller verification</h1><p>Submit your business details for review before scheduling auctions.</p></div><a class="btn btn-outline-primary" href="/seller-dashboard/">Back to dashboard</a></div>
+<div class="row g-4 align-items-start">
+  <section class="col-lg-5">
+    <form id="verification-form" class="form-panel">
+      <h2>Verification details</h2>
+      <label class="form-label" for="legal-name">Legal name</label><input id="legal-name" class="form-control mb-3" required maxlength="200">
+      <label class="form-label" for="document-type">Document type</label><input id="document-type" class="form-control mb-3" required maxlength="100" placeholder="Business registration, identity document…">
+      <label class="form-label" for="document-reference">Document reference</label><input id="document-reference" class="form-control mb-3" required maxlength="200">
+      <button class="btn btn-primary w-100" type="submit">Submit for review</button>
+      <p id="verification-message" class="form-message mt-3" role="status"></p>
+    </form>
+  </section>
+  <section class="col-lg-7"><div class="section-heading"><div><span class="eyebrow">REVIEW STATUS</span><h2>Your requests</h2></div></div><div id="verification-list" class="activity-list"><p class="empty-state">Loading verification status…</p></div></section>
+</div>
+<script>
+const verificationForm = document.getElementById('verification-form');
+const verificationList = document.getElementById('verification-list');
+const verificationMessage = document.getElementById('verification-message');
+async function loadVerification() {
+  const data = await window.marketplace.api('/api/accounts/seller-verifications/');
+  const requests = window.marketplace.items(data);
+  const rows = requests.map((request) => {
+    const row = document.createElement('div');
+    row.className = 'activity-row';
+    const name = document.createElement('span');
+    name.textContent = `${request.legal_name} · ${request.document_type}`;
+    const status = document.createElement('span');
+    status.className = 'status-pill';
+    status.textContent = request.status;
+    row.append(name, status);
+    return row;
+  });
+  verificationList.replaceChildren(...rows);
+  if (!rows.length) verificationList.innerHTML = '<p class="empty-state">No verification request submitted yet.</p>';
+  if (requests.some((request) => request.status === 'PENDING' || request.status === 'APPROVED')) {
+    verificationForm.querySelector('button').disabled = true;
+    verificationMessage.textContent = 'A pending or approved verification request already exists.';
+  }
+}
+verificationForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = verificationForm.querySelector('button');
+  button.disabled = true;
+  try {
+    await window.marketplace.api('/api/accounts/seller-verifications/', {
+      method: 'POST',
+      body: JSON.stringify({
+        legal_name: document.getElementById('legal-name').value.trim(),
+        document_type: document.getElementById('document-type').value.trim(),
+        document_reference: document.getElementById('document-reference').value.trim(),
+      }),
+    });
+    verificationForm.reset();
+    verificationMessage.textContent = 'Your verification request has been submitted.';
+    await loadVerification();
+  } catch (error) {
+    verificationMessage.textContent = error.message;
+    verificationMessage.classList.add('text-danger');
+    button.disabled = false;
+  }
+});
+if (!localStorage.getItem('access')) {
+  verificationList.innerHTML = '<p class="empty-state">Sign in with a seller account to submit verification. <a href="/login/">Sign in</a></p>';
+  verificationForm.querySelector('button').disabled = true;
+} else {
+  loadVerification().catch((error) => {
+    verificationList.textContent = error.message;
+    verificationMessage.textContent = error.message;
+    verificationMessage.classList.add('text-danger');
+  });
+}
+</script>
+{% endblock %}

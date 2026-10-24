@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Start an Auction · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">SELLER STUDIO</span><h1>Start an auction</h1><p>Choose an approved product and set the bidding schedule.</p></div><a class="btn btn-outline-primary" href="/seller-dashboard/">Back to dashboard</a></div>
+<div class="row g-4 align-items-start">
+  <section class="col-lg-5">
+    <form id="auction-form" class="form-panel">
+      <h2>Auction details</h2>
+      <label class="form-label" for="product">Approved product</label><select id="product" class="form-select mb-3" required><option value="">Loading products…</option></select>
+      <label class="form-label" for="increment">Minimum bid increment</label><input id="increment" class="form-control mb-3" type="number" min="0.01" step="0.01" value="1.00" required>
+      <label class="form-label" for="start">Starts</label><input id="start" class="form-control mb-3" type="datetime-local" required>
+      <label class="form-label" for="end">Ends</label><input id="end" class="form-control mb-3" type="datetime-local" required>
+      <button class="btn btn-primary w-100" type="submit">Submit auction for approval</button>
+      <p id="auction-message" class="form-message mt-3" role="status"></p>
+      <p class="field-help small mb-0">Auctions go live after administrator approval. Seller verification may be required.</p>
+    </form>
+  </section>
+  <section class="col-lg-7">
+    <div class="section-heading"><div><span class="eyebrow">YOUR AUCTIONS</span><h2>Recent activity</h2></div></div>
+    <div id="auction-list" class="activity-list"><p class="text-muted">Loading your auctions…</p></div>
+  </section>
+</div>
+<script>
+const form = document.getElementById('auction-form');
+const productSelect = document.getElementById('product');
+const auctionList = document.getElementById('auction-list');
+const message = document.getElementById('auction-message');
+async function loadAuctions() {
+  const [productData, auctionData] = await Promise.all([
+    window.marketplace.api('/api/products/products/'),
+    window.marketplace.api('/api/auctions/auctions/'),
+  ]);
+  productSelect.replaceChildren(new Option('Choose an approved product', ''));
+  for (const product of window.marketplace.items(productData).filter((item) => item.status === 'APPROVED')) {
+    productSelect.append(new Option(`${product.name} · ${window.marketplace.money(product.starting_price)}`, product.id));
+  }
+  if (productSelect.options.length === 1) {
+    productSelect.options[0].textContent = 'No approved products available';
+    productSelect.disabled = true;
+    form.querySelector('button').disabled = true;
+  }
+  const rows = window.marketplace.items(auctionData).map((auction) => {
+    const row = document.createElement('div');
+    row.className = 'activity-row';
+    const name = document.createElement('span');
+    name.textContent = `${auction.product_name} · ${auction.bid_count} bids`;
+    const status = document.createElement('span');
+    status.className = 'status-pill';
+    status.textContent = auction.status.replaceAll('_', ' ');
+    row.append(name, status);
+    return row;
+  });
+  auctionList.replaceChildren(...rows);
+  if (!rows.length) auctionList.innerHTML = '<p class="empty-state">Your submitted auctions will appear here.</p>';
+}
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  message.textContent = 'Submitting auction…';
+  message.classList.remove('text-danger');
+  try {
+    const productData = await window.marketplace.api(`/api/products/products/${productSelect.value}/`);
+    const auction = await window.marketplace.api('/api/auctions/auctions/', {
+      method: 'POST',
+      body: JSON.stringify({
+        product: productData.id,
+        starting_price: productData.starting_price,
+        min_increment: document.getElementById('increment').value,
+        start_at: new Date(document.getElementById('start').value).toISOString(),
+        end_at: new Date(document.getElementById('end').value).toISOString(),
+      }),
+    });
+    form.reset();
+    await loadAuctions();
+    message.textContent = `Auction #${auction.id} submitted for approval.`;
+  } catch (error) {
+    message.textContent = error.message;
+    message.classList.add('text-danger');
+  } finally {
+    button.disabled = productSelect.disabled;
+  }
+});
+if (!localStorage.getItem('access')) {
+  auctionList.innerHTML = '<p class="empty-state">Sign in as a seller to start an auction. <a href="/login/">Sign in</a></p>';
+  form.querySelector('button').disabled = true;
+} else {
+  loadAuctions().catch((error) => {
+    auctionList.textContent = error.message;
+    message.textContent = error.message;
+    message.classList.add('text-danger');
+  });
+}
+</script>
+{% endblock %}

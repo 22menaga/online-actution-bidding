@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Your Listings · AuctionHub{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">SELLER STUDIO</span><h1>Product listings</h1><p>Submit your product for review before creating an auction.</p></div><a class="btn btn-outline-primary" href="/seller-dashboard/">Back to dashboard</a></div>
+<div class="row g-4 align-items-start">
+  <section class="col-lg-5">
+    <form id="product-form" class="form-panel">
+      <h2>List a product</h2>
+      <label class="form-label" for="category">Category</label><select class="form-select mb-3" id="category" required><option value="">Choose a category</option></select>
+      <label class="form-label" for="name">Product name</label><input class="form-control mb-3" id="name" maxlength="240" required>
+      <label class="form-label" for="description">Description</label><textarea class="form-control mb-3" id="description" rows="4" required></textarea>
+      <label class="form-label" for="condition">Condition</label><input class="form-control mb-3" id="condition" maxlength="80" placeholder="New, like new, pre-owned…" required>
+      <label class="form-label" for="price">Starting price</label><input class="form-control mb-3" id="price" type="number" min="0.01" step="0.01" required>
+      <button class="btn btn-primary w-100" type="submit">Submit product for review</button>
+      <p id="form-message" class="form-message mt-3" role="status"></p>
+    </form>
+  </section>
+  <section class="col-lg-7">
+    <div class="section-heading"><div><span class="eyebrow">YOUR INVENTORY</span><h2>Listing status</h2></div></div>
+    <div id="product-list" class="activity-list"><p class="text-muted">Loading your products…</p></div>
+  </section>
+</div>
+<script>
+const form = document.getElementById('product-form');
+const message = document.getElementById('form-message');
+const categorySelect = document.getElementById('category');
+const list = document.getElementById('product-list');
+function showMessage(text, error = false) {
+  message.textContent = text;
+  message.classList.toggle('text-danger', error);
+}
+async function loadSellerInventory() {
+  const [categoryData, productData] = await Promise.all([
+    window.marketplace.api('/api/products/categories/'),
+    window.marketplace.api('/api/products/products/'),
+  ]);
+  categorySelect.replaceChildren(new Option('Choose a category', ''));
+  for (const category of window.marketplace.items(categoryData)) {
+    const option = document.createElement('option');
+    option.value = category.id;
+    option.textContent = category.name;
+    categorySelect.append(option);
+  }
+  const rows = window.marketplace.items(productData).map((product) => {
+    const row = document.createElement('div');
+    row.className = 'activity-row';
+    const name = document.createElement('span');
+    name.textContent = `${product.name} · ${window.marketplace.money(product.starting_price)}`;
+    const status = document.createElement('span');
+    status.className = 'status-pill';
+    status.textContent = product.status.replaceAll('_', ' ');
+    row.append(name, status);
+    return row;
+  });
+  list.replaceChildren(...rows);
+  if (!rows.length) list.innerHTML = '<p class="empty-state">Your listings will appear here.</p>';
+}
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  showMessage('Submitting product…');
+  try {
+    const product = await window.marketplace.api('/api/products/products/', {
+      method: 'POST',
+      body: JSON.stringify({
+        category: categorySelect.value,
+        name: document.getElementById('name').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        condition: document.getElementById('condition').value.trim(),
+        starting_price: document.getElementById('price').value,
+      }),
+    });
+    await window.marketplace.api(`/api/products/products/${product.id}/submit/`, { method: 'POST' });
+    form.reset();
+    await loadSellerInventory();
+    showMessage('Product submitted. It will be available for auction after approval.');
+  } catch (error) {
+    showMessage(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+if (!localStorage.getItem('access')) {
+  list.innerHTML = '<p class="empty-state">Sign in as a seller to manage listings. <a href="/login/">Sign in</a></p>';
+  form.querySelector('button').disabled = true;
+} else {
+  loadSellerInventory().catch((error) => {
+    list.textContent = error.message;
+    showMessage(error.message, true);
+  });
+}
+</script>
+{% endblock %}
